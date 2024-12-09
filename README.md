@@ -1,6 +1,4 @@
-這裡是依據您上傳的圖片內容撰寫的 README 文件格式：
 
----
 
 # Polynomial Class Implementation
 
