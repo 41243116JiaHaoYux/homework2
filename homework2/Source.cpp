@@ -1,36 +1,181 @@
 #include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
 
 using namespace std;
-/*°İÃD¡G
-¹ê²{ Polynomial Ãş§O
-®Ú¾Ú¹Ï1»P¹Ï2¤À§O©w¸qªº©â¶H¸ê®Æ«¬§O¡]ADT¡^»P¨p¦³¸ê®Æ¦¨­û¡A¹ê§@ Polynomial Ãş§O¡C
 
-¼¶¼g C++ ¨ç¼Æ
-¼¶¼g¥Î©ó¿é¤J»P¿é¥Xªº C++ ¨ç¼Æ¨Ó³B²z¹Ï2ªí¥Üªº¦h¶µ¦¡¸ê®Æ¡C³o¨Ç¨ç¼Æ»İ­n­«¸ü << ©M >> ¹Bºâ¤l¡C
-*/
-//p(x)=(a0*x^e0)+(a1*x^e1)+....+(an*x^en)
-class Polynomial
-{
+// å®šç¾© Term é¡åˆ¥
+class Term {
 public:
-	Polynomial();
-	Polynomial Add(Polynomial poly);
-	Polynomial Mult(Polynomial poly);
-	float Eval(float f);
-private:
-	Term* termArray;//array off nonzero terms
-	int capacity;	//size of termArray
-	int term;		//number of nonzero terms
+    float coef; // ä¿‚æ•¸
+    int exp;    // æŒ‡æ•¸
+
+    Term(float c = 0, int e = 0) : coef(c), exp(e) {}
 };
 
-class Term
-{
-	friend Polynomial;
+// å®šç¾© Polynomial é¡åˆ¥
+class Polynomial {
+public:
+    Polynomial(); // é è¨­å»ºæ§‹å­
+    Polynomial Add(const Polynomial& poly) const;  
+    Polynomial Mult(const Polynomial& poly) const;
+    float Eval(float x) const;                     
+    friend ostream& operator<<(ostream& out, const Polynomial& poly); // è¼¸å‡ºé‹ç®—å­
+    friend istream& operator>>(istream& in, Polynomial& poly);        // è¼¸å…¥é‹ç®—å­
+
 private:
-	float coef;	//«Y¼Æ
-	int exp;	//«ü¼Æ
+    vector<Term> termArray; // å„²å­˜å¤šé …å¼ä¸­çš„éé›¶
+    void Simplify();        // ç°¡åŒ–
 };
 
+// é è¨­å»ºæ§‹å­
+Polynomial::Polynomial() {}
 
-Polynomial::Polynomial()
-{
+// å¤šé …å¼åŠ æ³•
+Polynomial Polynomial::Add(const Polynomial& poly) const {
+    Polynomial result;
+    size_t i = 0, j = 0;
+
+    while (i < termArray.size() && j < poly.termArray.size()) {
+        if (termArray[i].exp == poly.termArray[j].exp) {
+            float newCoef = termArray[i].coef + poly.termArray[j].coef;
+            if (newCoef != 0)
+                result.termArray.emplace_back(newCoef, termArray[i].exp);
+            i++;
+            j++;
+        }
+        else if (termArray[i].exp > poly.termArray[j].exp) {
+            result.termArray.push_back(termArray[i]);
+            i++;
+        }
+        else {
+            result.termArray.push_back(poly.termArray[j]);
+            j++;
+        }
+    }
+
+    // åŠ å…¥å‰©é¤˜é …
+    while (i < termArray.size()) result.termArray.push_back(termArray[i++]);
+    while (j < poly.termArray.size()) result.termArray.push_back(poly.termArray[j++]);
+
+    return result;
+}
+
+// å¤šé …å¼ä¹˜æ³•
+Polynomial Polynomial::Mult(const Polynomial& poly) const {
+    Polynomial result;
+
+    for (const auto& term1 : termArray) {
+        for (const auto& term2 : poly.termArray) {
+            result.termArray.emplace_back(term1.coef * term2.coef, term1.exp + term2.exp);
+        }
+    }
+
+    result.Simplify();
+    return result;
+}
+
+// å¤šé …å¼æ±‚å€¼
+float Polynomial::Eval(float x) const {
+    float result = 0;
+
+    for (const auto& term : termArray) {
+        result += term.coef * pow(x, term.exp);
+    }
+
+    return result;
+}
+
+// åŒ–ç°¡
+void Polynomial::Simplify() {
+    if (termArray.empty()) return;
+
+    // æ’åºï¼ŒæŒ‰æŒ‡æ•¸é™åº
+    sort(termArray.begin(), termArray.end(), [](const Term& a, const Term& b) {
+        return a.exp > b.exp;
+        });
+
+    // åˆä½µåŒé¡é …
+    vector<Term> simplified;
+    simplified.push_back(termArray[0]);
+
+    for (size_t i = 1; i < termArray.size(); i++) {
+        if (termArray[i].exp == simplified.back().exp) {
+            simplified.back().coef += termArray[i].coef;
+        }
+        else {
+            simplified.push_back(termArray[i]);
+        }
+    }
+
+    // å»é™¤ä¿‚æ•¸ç‚º 0 çš„é …
+    termArray.clear();
+    for (const auto& term : simplified) {
+        if (term.coef != 0)
+            termArray.push_back(term);
+    }
+}
+
+// è¼¸å‡ºé‹ç®—å­é‡è¼‰
+ostream& operator<<(ostream& out, const Polynomial& poly) {
+    if (poly.termArray.empty()) {
+        out << "0";
+        return out;
+    }
+
+    for (size_t i = 0; i < poly.termArray.size(); i++) {
+        const auto& term = poly.termArray[i];
+        if (i > 0 && term.coef > 0) out << "+";
+        out << term.coef;
+        if (term.exp > 0) out << "x^" << term.exp;
+    }
+
+    return out;
+}
+
+// è¼¸å…¥é‹ç®—å­é‡è¼‰
+istream& operator>>(istream& in, Polynomial& poly) {
+    int n; // è¼¸å…¥çš„é …æ•¸
+    cout << "Enter number of terms: ";
+    in >> n;
+    poly.termArray.clear();
+
+    for (int i = 0; i < n; i++) {
+        float coef;
+        int exp;
+        cout << "Enter coefficient and exponent (separated by space): ";
+        in >> coef >> exp;
+        poly.termArray.emplace_back(coef, exp);
+    }
+
+    poly.Simplify();
+    return in;
+}
+
+// ä¸»å‡½æ•¸æ¸¬è©¦
+int main() {
+    Polynomial p1, p2;
+    cout << "Enter first polynomial:\n";
+    cin >> p1;
+
+    cout << "Enter second polynomial:\n";
+    cin >> p2;
+
+    cout << "P1: " << p1 << endl;
+    cout << "P2: " << p2 << endl;
+
+    Polynomial sum = p1.Add(p2);
+    cout << "Sum: " << sum << endl;
+
+    Polynomial product = p1.Mult(p2);
+    cout << "Product: " << product << endl;
+
+    float x;
+    cout << "Enter value of x for evaluation: ";
+    cin >> x;
+    cout << "P1(" << x << ") = " << p1.Eval(x) << endl;
+    cout << "P2(" << x << ") = " << p2.Eval(x) << endl;
+
+    return 0;
 }
